@@ -116,11 +116,15 @@ class DatabaseService {
   Future<Map<String, double>> getCollectionStats() async {
     final d = await db;
     final rows = await d.rawQuery(
-      'SELECT COUNT(*) as count, SUM(estimated_value * quantity) as total FROM cards',
+      'SELECT COUNT(*) as count, '
+      'SUM(estimated_value * quantity) as total, '
+      'SUM(purchase_price * quantity) as total_cost '
+      'FROM cards',
     );
     return {
       'count': (rows.first['count'] as int? ?? 0).toDouble(),
       'total': (rows.first['total'] as num? ?? 0).toDouble(),
+      'total_cost': (rows.first['total_cost'] as num? ?? 0).toDouble(),
     };
   }
 }

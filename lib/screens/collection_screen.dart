@@ -16,6 +16,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
   final _searchCtrl = TextEditingController();
   List<TradingCard> _cards = [];
   Map<String, double> _stats = {};
+  Map<String, int> _byGame = {};
   bool _loading = true;
 
   @override
@@ -34,9 +35,17 @@ class _CollectionScreenState extends State<CollectionScreen> {
     setState(() => _loading = true);
     final cards = await _db.getCards(query: query);
     final stats = await _db.getCollectionStats();
+
+    // Tally cards by game
+    final byGame = <String, int>{};
+    for (final c in cards) {
+      if (c.game.isNotEmpty) byGame[c.game] = (byGame[c.game] ?? 0) + c.quantity;
+    }
+
     setState(() {
       _cards = cards;
       _stats = stats;
+      _byGame = byGame;
       _loading = false;
     });
   }
@@ -60,6 +69,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final totalValue = _stats['total'] ?? 0;
+    final totalCost = _stats['total_cost'] ?? 0;
+    final profitLoss = totalValue - totalCost;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Collection'),
@@ -77,17 +90,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          _load();
-                        },
+                        onPressed: () { _searchCtrl.clear(); _load(); },
                       )
                     : null,
                 filled: true,
                 fillColor: Colors.grey[850],
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
               onChanged: (v) => _load(query: v),
@@ -97,18 +105,49 @@ class _CollectionScreenState extends State<CollectionScreen> {
       ),
       body: Column(
         children: [
-          // Stats bar
+          // Stats panel
           Container(
             color: Colors.grey[900],
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
               children: [
-                _Stat(label: 'Cards', value: '${_stats['count']?.toInt() ?? 0}'),
-                _Stat(
-                  label: 'Total Value',
-                  value: '\$${(_stats['total'] ?? 0).toStringAsFixed(2)}',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _Stat(label: 'Cards', value: '${_stats['count']?.toInt() ?? 0}'),
+                    _Stat(label: 'Total Value', value: '\$${totalValue.toStringAsFixed(2)}'),
+                    _Stat(label: 'Total Cost', value: '\$${totalCost.toStringAsFixed(2)}'),
+                    _Stat(
+                      label: 'P / L',
+                      value: '${profitLoss >= 0 ? '+' : ''}\$${profitLoss.toStringAsFixed(2)}',
+                      valueColor: totalCost == 0
+                          ? Colors.grey
+                          : profitLoss >= 0
+                              ? Colors.greenAccent
+                              : Colors.redAccent,
+                    ),
+                  ],
                 ),
+                if (_byGame.isNotEmpty && _searchCtrl.text.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 1, color: Colors.white12),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: _byGame.entries
+                        .toList()
+                        .sorted((a, b) => b.value.compareTo(a.value))
+                        .map((e) => Chip(
+                              label: Text('${e.key}: ${e.value}',
+                                  style: const TextStyle(fontSize: 11, color: Colors.white)),
+                              backgroundColor: Colors.grey[800],
+                              padding: EdgeInsets.zero,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ))
+                        .toList(),
+                  ),
+                ],
               ],
             ),
           ),
@@ -145,40 +184,40 @@ class _CollectionScreenState extends State<CollectionScreen> {
   }
 }
 
+extension _ListSort<T> on List<T> {
+  List<T> sorted(int Function(T a, T b) compare) => [...this]..sort(compare);
+}
+
 class _Stat extends StatelessWidget {
   final String label;
   final String value;
-  const _Stat({required this.label, required this.value});
+  final Color? valueColor;
+  const _Stat({required this.label, required this.value, this.valueColor});
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(value,
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: valueColor ?? Colors.white)),
+      Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+    ],
+  );
 }
 
 class _CardTile extends StatelessWidget {
   final TradingCard card;
   final Color gradeColor;
   final VoidCallback onTap;
-
   const _CardTile({required this.card, required this.gradeColor, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: SizedBox(
-        width: 48,
-        height: 64,
-        child: CardImage(path: card.frontScanPath, placeholder: ''),
-      ),
+      leading: SizedBox(width: 48, height: 64, child: CardImage(path: card.frontScanPath, placeholder: '')),
       title: Text(card.name, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         [
@@ -203,8 +242,7 @@ class _CardTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: gradeColor.withValues(alpha: 0.6)),
               ),
-              child: Text(card.conditionGrade!,
-                  style: TextStyle(color: gradeColor, fontSize: 11)),
+              child: Text(card.conditionGrade!, style: TextStyle(color: gradeColor, fontSize: 11)),
             ),
         ],
       ),
