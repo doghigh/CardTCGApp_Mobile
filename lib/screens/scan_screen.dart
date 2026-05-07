@@ -9,6 +9,11 @@ import '../services/valuation_service.dart';
 import '../services/database_service.dart';
 import '../widgets/card_image.dart';
 
+bool _isSports(String type) => const {
+  'Baseball', 'Basketball', 'Football', 'Soccer',
+  'Hockey', 'Golf', 'Wrestling', 'Other Sports',
+}.contains(type);
+
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
   @override
@@ -25,6 +30,7 @@ class _ScanScreenState extends State<ScanScreen> {
   final _setCtrl = TextEditingController();
   final _numberCtrl = TextEditingController();
   final _rarityCtrl = TextEditingController();
+  final _publisherCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _purchasePriceCtrl = TextEditingController(text: '0.00');
   final _yearCtrl = TextEditingController();
@@ -36,13 +42,15 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _busy = false;
   List<ValuationResult> _valuations = [];
   double _estimate = 0.0;
-  String _game = 'Pokémon';
+  String _cardType = 'Pokémon';
   String? _condition;
   bool _foil = false;
 
-  static const _games = [
+  static const _cardTypes = [
     'Pokémon', 'Magic: The Gathering', 'Yu-Gi-Oh!', 'One Piece',
-    'Lorcana', 'Flesh and Blood', 'Sports', 'Other',
+    'Lorcana', 'Flesh and Blood', 'Other TCG',
+    'Baseball', 'Basketball', 'Football', 'Soccer',
+    'Hockey', 'Golf', 'Wrestling', 'Other Sports',
   ];
 
   static const _conditions = [
@@ -56,6 +64,7 @@ class _ScanScreenState extends State<ScanScreen> {
     _setCtrl.dispose();
     _numberCtrl.dispose();
     _rarityCtrl.dispose();
+    _publisherCtrl.dispose();
     _notesCtrl.dispose();
     _purchasePriceCtrl.dispose();
     _yearCtrl.dispose();
@@ -133,7 +142,7 @@ class _ScanScreenState extends State<ScanScreen> {
       return;
     }
     setState(() { _busy = true; _status = 'Fetching prices for "$name"...'; });
-    final results = await _valuator.fetchAll(name, setName: _setCtrl.text.trim(), game: _game);
+    final results = await _valuator.fetchAll(name, setName: _setCtrl.text.trim(), game: _cardType);
     final estimate = _valuator.computeEstimate(results, 85);
     setState(() {
       _valuations = results;
@@ -157,7 +166,8 @@ class _ScanScreenState extends State<ScanScreen> {
       setName: _setCtrl.text.trim(),
       cardNumber: _numberCtrl.text.trim(),
       rarity: _rarityCtrl.text.trim(),
-      game: _game,
+      game: _cardType,
+      publisher: _publisherCtrl.text.trim(),
       year: int.tryParse(_yearCtrl.text) ?? 0,
       foil: _foil,
       frontScanPath: _frontPath,
@@ -190,7 +200,7 @@ class _ScanScreenState extends State<ScanScreen> {
       _backPath = null;
       _valuations = [];
       _estimate = 0.0;
-      _game = 'Pokémon';
+      _cardType = 'Pokémon';
       _condition = null;
       _foil = false;
       _status = 'Tap a panel to capture the card front and back.';
@@ -199,6 +209,7 @@ class _ScanScreenState extends State<ScanScreen> {
     _setCtrl.clear();
     _numberCtrl.clear();
     _rarityCtrl.clear();
+    _publisherCtrl.clear();
     _notesCtrl.clear();
     _purchasePriceCtrl.text = '0.00';
     _qtyCtrl.text = '1';
@@ -207,6 +218,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sports = _isSports(_cardType);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Card'),
@@ -230,28 +242,48 @@ class _ScanScreenState extends State<ScanScreen> {
             const SizedBox(height: 12),
             _StatusBar(busy: _busy, message: _status),
             const SizedBox(height: 16),
-            _buildField('Card Name *', _nameCtrl),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: _buildField('Set', _setCtrl)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildField('Card #', _numberCtrl)),
-            ]),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: _buildField('Rarity', _rarityCtrl)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildField('Year', _yearCtrl, keyboardType: TextInputType.number)),
-            ]),
-            const SizedBox(height: 8),
+
+            // Card Type — always first
             DropdownButtonFormField<String>(
-              initialValue: _game,
-              decoration: _inputDeco('Game'),
+              initialValue: _cardType,
+              decoration: _inputDeco('Card Type'),
               dropdownColor: Colors.grey[900],
               style: const TextStyle(color: Colors.white),
-              items: _games.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-              onChanged: (v) => setState(() => _game = v!),
+              items: _cardTypes.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+              onChanged: (v) => setState(() => _cardType = v!),
             ),
+            const SizedBox(height: 8),
+
+            // Name field — label depends on type
+            _buildField(sports ? 'Player Name *' : 'Card Name *', _nameCtrl),
+            const SizedBox(height: 8),
+
+            if (sports) ...[
+              // Sports layout: Year | Team
+              Row(children: [
+                Expanded(child: _buildField('Year', _yearCtrl, keyboardType: TextInputType.number)),
+                const SizedBox(width: 8),
+                Expanded(child: _buildField('Team', _setCtrl)),
+              ]),
+              const SizedBox(height: 8),
+              _buildField('Publisher', _publisherCtrl),
+            ] else ...[
+              // TCG layout: Generation/Set | Card #
+              Row(children: [
+                Expanded(child: _buildField('Generation / Set', _setCtrl)),
+                const SizedBox(width: 8),
+                Expanded(child: _buildField('Card #', _numberCtrl)),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: _buildField('Rarity', _rarityCtrl)),
+                const SizedBox(width: 8),
+                Expanded(child: _buildField('Year', _yearCtrl, keyboardType: TextInputType.number)),
+              ]),
+              const SizedBox(height: 8),
+              _buildField('Publisher', _publisherCtrl),
+            ],
+
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
               initialValue: _condition,

@@ -18,7 +18,7 @@ class DatabaseService {
     final path = join(await getDatabasesPath(), 'cards.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE cards (
@@ -28,6 +28,7 @@ class DatabaseService {
             card_number TEXT,
             rarity TEXT,
             game TEXT,
+            publisher TEXT,
             year INTEGER,
             language TEXT,
             foil INTEGER DEFAULT 0,
@@ -54,6 +55,11 @@ class DatabaseService {
             FOREIGN KEY (card_id) REFERENCES cards(id)
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE cards ADD COLUMN publisher TEXT');
+        }
       },
     );
   }

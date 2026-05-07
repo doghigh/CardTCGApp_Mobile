@@ -5,6 +5,7 @@ class TradingCard {
   final String cardNumber;
   final String rarity;
   final String game;
+  final String publisher;
   final int year;
   final String language;
   final bool foil;
@@ -26,6 +27,7 @@ class TradingCard {
     this.cardNumber = '',
     this.rarity = '',
     this.game = '',
+    this.publisher = '',
     this.year = 0,
     this.language = 'English',
     this.foil = false,
@@ -48,6 +50,7 @@ class TradingCard {
         'card_number': cardNumber,
         'rarity': rarity,
         'game': game,
+        'publisher': publisher,
         'year': year,
         'language': language,
         'foil': foil ? 1 : 0,
@@ -70,6 +73,7 @@ class TradingCard {
         cardNumber: m['card_number'] as String? ?? '',
         rarity: m['rarity'] as String? ?? '',
         game: m['game'] as String? ?? '',
+        publisher: m['publisher'] as String? ?? '',
         year: m['year'] as int? ?? 0,
         language: m['language'] as String? ?? 'English',
         foil: (m['foil'] as int? ?? 0) == 1,
@@ -94,6 +98,7 @@ class TradingCard {
     String? cardNumber,
     String? rarity,
     String? game,
+    String? publisher,
     int? year,
     String? language,
     bool? foil,
@@ -114,6 +119,7 @@ class TradingCard {
         cardNumber: cardNumber ?? this.cardNumber,
         rarity: rarity ?? this.rarity,
         game: game ?? this.game,
+        publisher: publisher ?? this.publisher,
         year: year ?? this.year,
         language: language ?? this.language,
         foil: foil ?? this.foil,

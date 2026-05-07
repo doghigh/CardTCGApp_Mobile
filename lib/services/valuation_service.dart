@@ -20,7 +20,15 @@ class ValuationService {
     'One Piece': 'one piece card',
     'Lorcana': 'lorcana card',
     'Flesh and Blood': 'flesh and blood card',
-    'Sports': 'trading card',
+    'Other TCG': 'trading card',
+    'Baseball': 'baseball card',
+    'Basketball': 'basketball card',
+    'Football': 'football card',
+    'Soccer': 'soccer card',
+    'Hockey': 'hockey card',
+    'Golf': 'golf card',
+    'Wrestling': 'wrestling card',
+    'Other Sports': 'sports card',
   };
 
   Future<List<ValuationResult>> fetchAll(String name, {String? setName, String game = 'Other'}) async {

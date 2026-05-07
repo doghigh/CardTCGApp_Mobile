@@ -4,6 +4,11 @@ import '../services/database_service.dart';
 import '../services/valuation_service.dart';
 import '../widgets/card_image.dart';
 
+bool _isSports(String type) => const {
+  'Baseball', 'Basketball', 'Football', 'Soccer',
+  'Hockey', 'Golf', 'Wrestling', 'Other Sports',
+}.contains(type);
+
 class CardDetailScreen extends StatefulWidget {
   final TradingCard card;
   const CardDetailScreen({super.key, required this.card});
@@ -21,22 +26,24 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   bool _fetchingPrice = false;
   bool _editing = false;
 
-  // Edit controllers
   late TextEditingController _nameCtrl;
   late TextEditingController _setCtrl;
   late TextEditingController _numberCtrl;
   late TextEditingController _rarityCtrl;
+  late TextEditingController _publisherCtrl;
   late TextEditingController _notesCtrl;
   late TextEditingController _purchasePriceCtrl;
   late TextEditingController _yearCtrl;
   late TextEditingController _qtyCtrl;
-  late String _editGame;
+  late String _editCardType;
   late String? _editCondition;
   late bool _editFoil;
 
-  static const _games = [
+  static const _cardTypes = [
     'Pokémon', 'Magic: The Gathering', 'Yu-Gi-Oh!', 'One Piece',
-    'Lorcana', 'Flesh and Blood', 'Sports', 'Other',
+    'Lorcana', 'Flesh and Blood', 'Other TCG',
+    'Baseball', 'Basketball', 'Football', 'Soccer',
+    'Hockey', 'Golf', 'Wrestling', 'Other Sports',
   ];
 
   static const _conditions = [
@@ -57,13 +64,14 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     _setCtrl = TextEditingController(text: _card.setName);
     _numberCtrl = TextEditingController(text: _card.cardNumber);
     _rarityCtrl = TextEditingController(text: _card.rarity);
+    _publisherCtrl = TextEditingController(text: _card.publisher);
     _notesCtrl = TextEditingController(text: _card.notes);
     _purchasePriceCtrl = TextEditingController(
         text: _card.purchasePrice > 0 ? _card.purchasePrice.toStringAsFixed(2) : '');
     _yearCtrl = TextEditingController(
         text: _card.year > 0 ? '${_card.year}' : '');
     _qtyCtrl = TextEditingController(text: '${_card.quantity}');
-    _editGame = _games.contains(_card.game) ? _card.game : 'Other';
+    _editCardType = _cardTypes.contains(_card.game) ? _card.game : 'Other TCG';
     _editCondition = _conditions.contains(_card.conditionGrade) ? _card.conditionGrade : null;
     _editFoil = _card.foil;
   }
@@ -74,6 +82,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
     _setCtrl.dispose();
     _numberCtrl.dispose();
     _rarityCtrl.dispose();
+    _publisherCtrl.dispose();
     _notesCtrl.dispose();
     _purchasePriceCtrl.dispose();
     _yearCtrl.dispose();
@@ -99,7 +108,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
       setName: _setCtrl.text.trim(),
       cardNumber: _numberCtrl.text.trim(),
       rarity: _rarityCtrl.text.trim(),
-      game: _editGame,
+      game: _editCardType,
+      publisher: _publisherCtrl.text.trim(),
       year: int.tryParse(_yearCtrl.text) ?? 0,
       foil: _editFoil,
       conditionGrade: _editCondition,
@@ -198,6 +208,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   }
 
   Widget _buildReadView() {
+    final sports = _isSports(_card.game);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -233,12 +244,20 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
             padding: const EdgeInsets.all(14),
             child: Column(
               children: [
-                _DetailRow('Set', _card.setName),
-                _DetailRow('Card #', _card.cardNumber),
-                _DetailRow('Game', _card.game),
-                _DetailRow('Rarity', _card.rarity),
+                _DetailRow('Card Type', _card.game),
+                if (sports) ...[
+                  _DetailRow('Player Name', _card.name),
+                  _DetailRow('Year', _card.year > 0 ? '${_card.year}' : ''),
+                  _DetailRow('Team', _card.setName),
+                ] else ...[
+                  _DetailRow('Card Name', _card.name),
+                  _DetailRow('Generation', _card.setName),
+                  _DetailRow('Card #', _card.cardNumber),
+                  _DetailRow('Rarity', _card.rarity),
+                  _DetailRow('Year', _card.year > 0 ? '${_card.year}' : ''),
+                ],
+                _DetailRow('Publisher', _card.publisher),
                 _DetailRow('Language', _card.language),
-                _DetailRow('Year', _card.year > 0 ? '${_card.year}' : ''),
                 _DetailRow('Foil', _card.foil ? 'Yes' : 'No'),
                 _DetailRow('Qty', '${_card.quantity}'),
                 _DetailRow('Purchase Price', _card.purchasePrice > 0 ? '\$${_card.purchasePrice.toStringAsFixed(2)}' : ''),
@@ -278,6 +297,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
   }
 
   Widget _buildEditForm() {
+    final sports = _isSports(_editCardType);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -289,28 +309,46 @@ class _CardDetailScreenState extends State<CardDetailScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        _field('Card Name *', _nameCtrl),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(child: _field('Set', _setCtrl)),
-          const SizedBox(width: 8),
-          Expanded(child: _field('Card #', _numberCtrl)),
-        ]),
-        const SizedBox(height: 8),
-        Row(children: [
-          Expanded(child: _field('Rarity', _rarityCtrl)),
-          const SizedBox(width: 8),
-          Expanded(child: _field('Year', _yearCtrl, keyboardType: TextInputType.number)),
-        ]),
-        const SizedBox(height: 8),
+
+        // Card Type — always first
         DropdownButtonFormField<String>(
-          initialValue: _editGame,
-          decoration: _inputDeco('Game'),
+          initialValue: _editCardType,
+          decoration: _inputDeco('Card Type'),
           dropdownColor: Colors.grey[900],
           style: const TextStyle(color: Colors.white),
-          items: _games.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-          onChanged: (v) => setState(() => _editGame = v!),
+          items: _cardTypes.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+          onChanged: (v) => setState(() => _editCardType = v!),
         ),
+        const SizedBox(height: 8),
+
+        // Name — label depends on type
+        _field(sports ? 'Player Name *' : 'Card Name *', _nameCtrl),
+        const SizedBox(height: 8),
+
+        if (sports) ...[
+          Row(children: [
+            Expanded(child: _field('Year', _yearCtrl, keyboardType: TextInputType.number)),
+            const SizedBox(width: 8),
+            Expanded(child: _field('Team', _setCtrl)),
+          ]),
+          const SizedBox(height: 8),
+          _field('Publisher', _publisherCtrl),
+        ] else ...[
+          Row(children: [
+            Expanded(child: _field('Generation / Set', _setCtrl)),
+            const SizedBox(width: 8),
+            Expanded(child: _field('Card #', _numberCtrl)),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: _field('Rarity', _rarityCtrl)),
+            const SizedBox(width: 8),
+            Expanded(child: _field('Year', _yearCtrl, keyboardType: TextInputType.number)),
+          ]),
+          const SizedBox(height: 8),
+          _field('Publisher', _publisherCtrl),
+        ],
+
         const SizedBox(height: 8),
         DropdownButtonFormField<String?>(
           initialValue: _editCondition,
